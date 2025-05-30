@@ -1,0 +1,14 @@
+{
+  "router": "unsloth/Qwen3-1.7B-GGUF/Qwen3-1.7B-Q8_0.gguf",
+  "routerPreset": null,
+  "creative": "DavidAU/TieFighter-Holodeck-Holomax-Mythomax-F1-V1-COMPOS-20B-gguf/TieFighter-Holodeck-Holomax-Mythomax-F1-V1-COMPOS-20B-Q4_K_S.gguf",
+  "creativePreset": null,
+  "coding": "C10X/Qwen3-8B-Code-Interpreter-Q4_K_M-GGUF/qwen3-8b-code-interpreter-q4_k_m.gguf",
+  "codingPreset": null,
+  "analysis": "lmstudio-community/DeepSeek-R1-Distill-Qwen-7B-GGUF/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf",
+  "analysisPreset": null,
+  "math": "mradermacher/DeepMath-Zero-Math-7B-i1-GGUF/DeepMath-Zero-Math-7B.i1-Q4_K_S.gguf",
+  "mathPreset": null,
+  "general": "lmstudio-community/gemma-3-12B-it-qat-GGUF/gemma-3-12B-it-QAT-Q4_0.gguf",
+  "generalPreset": null
+}

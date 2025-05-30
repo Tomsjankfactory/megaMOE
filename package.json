@@ -1,0 +1,32 @@
+{
+  "name": "moe-router",
+  "version": "1.0.0",
+  "description": "LLM Mixture of Experts Router - A web-based chat interface that routes messages to specialized language models",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "llm",
+    "mixture-of-experts",
+    "chat",
+    "ai",
+    "router",
+    "lm-studio"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "@lmstudio/sdk": "",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

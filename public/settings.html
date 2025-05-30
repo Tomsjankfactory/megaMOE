@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoE Router Settings</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚙️ MoE Router Settings</h1>
+            <div class="header-controls">
+                <a href="index.html" class="back-btn">← Back to Chat</a>
+            </div>
+        </header>
+
+        <div class="settings-container">
+            <div class="connection-status" id="connectionStatus">
+                <div class="status-card">
+                    <h3>🔗 LM Studio Connection</h3>
+                    <div class="status-row">
+                        <span>Status: </span>
+                        <span id="connectionText" class="status-text">Checking...</span>
+                    </div>
+                    <div class="status-row">
+                        <span>Available Models: </span>
+                        <span id="modelCount">0</span>
+                    </div>
+                    <button id="refreshBtn" class="refresh-btn">🔄 Refresh Models</button>
+                </div>
+            </div>
+
+            <div class="model-assignment">
+                <h3>🎯 Model Assignment</h3>
+                <p class="description">
+                    Assign your loaded LM Studio models to specific task categories. 
+                    The router model will decide which specialist to use for each message.
+                </p>
+
+                <form id="settingsForm" class="settings-form">
+                    <div class="setting-group">
+                        <label for="router">
+                            <span class="setting-icon">🧠</span>
+                            <div class="setting-info">
+                                <strong>Router Model</strong>
+                                <small>Analyzes messages and decides which specialist to use</small>
+                            </div>
+                        </label>
+                        <div class="model-config">
+                            <select id="router" name="router" required>
+                                <option value="">Select router model...</option>
+                            </select>
+                            <input type="text" id="routerPreset" name="routerPreset" placeholder="Preset name (optional)" class="preset-input">
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="creative">
+                            <span class="setting-icon">🎨</span>
+                            <div class="setting-info">
+                                <strong>Creative Model</strong>
+                                <small>Creative writing, stories, poetry, artistic content</small>
+                            </div>
+                        </label>
+                        <div class="model-config">
+                            <select id="creative" name="creative">
+                                <option value="">Select model...</option>
+                            </select>
+                            <input type="text" id="creativePreset" name="creativePreset" placeholder="Preset name (optional)" class="preset-input">
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="coding">
+                            <span class="setting-icon">💻</span>
+                            <div class="setting-info">
+                                <strong>Coding Model</strong>
+                                <small>Programming, debugging, technical questions</small>
+                            </div>
+                        </label>
+                        <div class="model-config">
+                            <select id="coding" name="coding">
+                                <option value="">Select model...</option>
+                            </select>
+                            <input type="text" id="codingPreset" name="codingPreset" placeholder="Preset name (optional)" class="preset-input">
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="analysis">
+                            <span class="setting-icon">📊</span>
+                            <div class="setting-info">
+                                <strong>Analysis Model</strong>
+                                <small>Data analysis, research, reasoning, complex thinking</small>
+                            </div>
+                        </label>
+                        <div class="model-config">
+                            <select id="analysis" name="analysis">
+                                <option value="">Select model...</option>
+                            </select>
+                            <input type="text" id="analysisPreset" name="analysisPreset" placeholder="Preset name (optional)" class="preset-input">
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="math">
+                            <span class="setting-icon">🔢</span>
+                            <div class="setting-info">
+                                <strong>Math Model</strong>
+                                <small>Calculations, equations, statistics, numerical problems</small>
+                            </div>
+                        </label>
+                        <div class="model-config">
+                            <select id="math" name="math">
+                                <option value="">Select model...</option>
+                            </select>
+                            <input type="text" id="mathPreset" name="mathPreset" placeholder="Preset name (optional)" class="preset-input">
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="general">
+                            <span class="setting-icon">💬</span>
+                            <div class="setting-info">
+                                <strong>General Model</strong>
+                                <small>General chat, simple questions, default conversations</small>
+                            </div>
+                        </label>
+                        <div class="model-config">
+                            <select id="general" name="general">
+                                <option value="">Select model...</option>
+                            </select>
+                            <input type="text" id="generalPreset" name="generalPreset" placeholder="Preset name (optional)" class="preset-input">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" id="saveBtn" class="save-btn" disabled>
+                            💾 Save Settings
+                        </button>
+                        <button type="button" id="resetBtn" class="reset-btn">
+                            🔄 Reset to Defaults
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="settings-help">
+                <h3>📚 Configuration Help</h3>
+                <div class="help-content">
+                    <div class="help-section">
+                        <h4>🚀 Getting Started</h4>
+                        <ol>
+                            <li>Make sure LM Studio is running on WebSocket <code>ws://192.168.1.2:1234</code></li>
+                            <li>Load your models in LM Studio</li>
+                            <li>Create presets in LM Studio (optional but recommended for router)</li>
+                            <li>Click "Refresh Models" to see available models</li>
+                            <li>Assign models to categories (router is required)</li>
+                            <li>Save your settings and start chatting!</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h4>💡 Tips</h4>
+                        <ul>
+                            <li><strong>Router Model:</strong> Use a fast, efficient model for routing decisions</li>
+                            <li><strong>Router Preset:</strong> Create a preset in LM Studio with system prompt for routing format</li>
+                            <li><strong>Presets:</strong> Optional - specify presets created in LM Studio for each model</li>
+                            <li><strong>System Prompt:</strong> Configure your router model's system prompt in LM Studio to respond with exact formats like "MODEL: coding"</li>
+                            <li><strong>Specialists:</strong> Use models optimized for specific tasks</li>
+                            <li><strong>Same Model:</strong> You can assign the same model to multiple categories</li>
+                            <li><strong>VRAM:</strong> Only one model loads at a time to save memory</li>
+                            <li><strong>Debugging:</strong> Check server console logs to see what router is responding with</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="settings.js"></script>
+</body>
+</html>
