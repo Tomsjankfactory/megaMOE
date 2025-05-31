@@ -9,6 +9,7 @@
   "analysisPreset": null,
   "math": "mradermacher/DeepMath-Zero-Math-7B-i1-GGUF/DeepMath-Zero-Math-7B.i1-Q4_K_S.gguf",
   "mathPreset": null,
-  "general": "lmstudio-community/gemma-3-12B-it-qat-GGUF/gemma-3-12B-it-QAT-Q4_0.gguf",
-  "generalPreset": null
+  "general": "lmstudio-community/Mistral-7B-Instruct-v0.3-GGUF/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
+  "generalPreset": null,
+  "keepRouterLoaded": true
 }

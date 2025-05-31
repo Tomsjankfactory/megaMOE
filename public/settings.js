@@ -22,6 +22,9 @@ class MoESettings {
             general: document.getElementById('general')
         };
         
+        // Toggle element
+        this.keepRouterLoadedCheckbox = document.getElementById('keepRouterLoaded');
+        
         this.initializeEventListeners();
         this.loadModels();
         this.loadSettings();
@@ -44,6 +47,9 @@ class MoESettings {
         Object.values(this.selects).forEach(select => {
             select.addEventListener('change', () => this.updateSaveButton());
         });
+        
+        // Monitor checkbox changes
+        this.keepRouterLoadedCheckbox.addEventListener('change', () => this.updateSaveButton());
     }
 
     async loadModels() {
@@ -119,6 +125,12 @@ class MoESettings {
                 this.selects[category].value = this.currentSettings[category];
             }
         });
+        
+        // Restore checkbox state
+        if (this.currentSettings.keepRouterLoaded !== undefined) {
+            this.keepRouterLoadedCheckbox.checked = this.currentSettings.keepRouterLoaded;
+        }
+        
         this.updateSaveButton();
     }
 
@@ -128,6 +140,9 @@ class MoESettings {
             Object.keys(this.selects).forEach(category => {
                 settings[category] = this.selects[category].value || null;
             });
+            
+            // Add checkbox setting
+            settings.keepRouterLoaded = this.keepRouterLoadedCheckbox.checked;
 
             // Validate router is selected
             if (!settings.router) {
@@ -181,6 +196,8 @@ class MoESettings {
             select.value = '';
         });
         
+        this.keepRouterLoadedCheckbox.checked = false;
+        
         this.updateSaveButton();
         this.showNotification('Settings reset. Don\'t forget to save!', 'info');
     }
@@ -188,6 +205,8 @@ class MoESettings {
     updateSaveButton() {
         // Check if any settings have changed
         let hasChanges = false;
+        
+        // Check selects
         Object.keys(this.selects).forEach(category => {
             const currentValue = this.selects[category].value || null;
             const savedValue = this.currentSettings[category] || null;
@@ -195,6 +214,13 @@ class MoESettings {
                 hasChanges = true;
             }
         });
+        
+        // Check checkbox
+        const currentCheckboxValue = this.keepRouterLoadedCheckbox.checked;
+        const savedCheckboxValue = this.currentSettings.keepRouterLoaded || false;
+        if (currentCheckboxValue !== savedCheckboxValue) {
+            hasChanges = true;
+        }
 
         this.saveBtn.disabled = !hasChanges;
     }

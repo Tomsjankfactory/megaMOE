@@ -21,6 +21,7 @@ const client = new LMStudioClient({
 let conversationHistory = []; // Clean history for specialists (user + specialist responses only)
 let currentLoadedModel = null; // Track currently loaded model handle
 let currentModelId = null; // Track which model is currently loaded
+let currentModelIsRouter = false; // Track if currently loaded model is the router
 
 let userSettings = {
   router: null,
@@ -34,30 +35,9 @@ let userSettings = {
   math: null,
   mathPreset: null,
   general: null,
-  generalPreset: null
+  generalPreset: null,
+  keepRouterLoaded: false
 };
-
-// Get recent conversation context for router (saves tokens for reasoning)
-function getRecentContextForRouter(cleanHistory, currentMessage) {
-  const messages = [];
-  
-  if (cleanHistory.length >= 2) {
-    // Get last user message and assistant response
-    const lastAssistantMsg = cleanHistory[cleanHistory.length - 1];
-    const lastUserMsg = cleanHistory[cleanHistory.length - 2];
-    
-    // Only include if they're actually user/assistant pair
-    if (lastUserMsg.role === 'user' && lastAssistantMsg.role === 'assistant') {
-      messages.push(lastUserMsg);
-      messages.push(lastAssistantMsg);
-    }
-  }
-  
-  // Add current user message
-  messages.push({ role: 'user', content: currentMessage });
-  
-  return messages;
-}
 
 // Load settings from file
 async function loadSettings() {
@@ -116,7 +96,7 @@ app.post('/api/settings', async (req, res) => {
 });
 
 // Load a specific model (unload current if different)
-async function loadModel(modelPath, preset = null) {
+async function loadModel(modelPath, preset = null, isRouter = false) {
   try {
     // If this model is already loaded, return success
     if (currentModelId === modelPath && currentLoadedModel) {
@@ -126,15 +106,23 @@ async function loadModel(modelPath, preset = null) {
 
     // Unload current model if different
     if (currentLoadedModel && currentModelId !== modelPath) {
-      console.log(`Unloading current model ${currentModelId}`);
-      try {
-        await currentLoadedModel.unload();
-      } catch (unloadError) {
-        console.warn('Error unloading model:', unloadError);
-        // Continue anyway - try to load new model
+      // Check if we should keep router loaded
+      const shouldKeepRouter = userSettings.keepRouterLoaded && currentModelIsRouter;
+      
+      if (shouldKeepRouter) {
+        console.log(`Keeping router model ${currentModelId} loaded due to toggle setting`);
+      } else {
+        console.log(`Unloading current model ${currentModelId}`);
+        try {
+          await currentLoadedModel.unload();
+        } catch (unloadError) {
+          console.warn('Error unloading model:', unloadError);
+          // Continue anyway - try to load new model
+        }
+        currentLoadedModel = null;
+        currentModelId = null;
+        currentModelIsRouter = false;
       }
-      currentLoadedModel = null;
-      currentModelId = null;
     }
 
     // Load new model with optional preset
@@ -153,6 +141,7 @@ async function loadModel(modelPath, preset = null) {
     
     currentLoadedModel = model;
     currentModelId = modelPath;
+    currentModelIsRouter = isRouter;
     console.log(`Successfully loaded model ${modelPath}${preset ? ` with preset "${preset}"` : ''}`);
     
     return { success: true, model: model };
@@ -202,27 +191,24 @@ async function routeMessage(message, cleanHistory) {
     }
 
     // Load router model
-    const loadResult = await loadModel(userSettings.router, userSettings.routerPreset);
+    const loadResult = await loadModel(userSettings.router, userSettings.routerPreset, true);
     if (!loadResult.success) {
       throw new Error(`Failed to load router model: ${loadResult.error}`);
     }
 
-    // Get only recent context for router (saves tokens for reasoning)
-    const messages = getRecentContextForRouter(cleanHistory, message);
-    
-    console.log(`Router context: ${messages.length} messages (vs full history: ${cleanHistory.length + 1})`);
-    console.log('Router messages:', messages.map(m => `${m.role}: ${m.content.substring(0, 100)}...`));
+    // Prepare messages for router (clean conversation history + current message)
+    const messages = [
+      ...cleanHistory,
+      { role: 'user', content: message }
+    ];
 
-    // Now router has plenty of tokens for chain-of-thought reasoning
+    // Get router response (await full result) - use full context window for thinking models
     const result = await loadResult.model.respond(messages, {
       temperature: 0.1,
-      maxTokens: 3000  // Plenty of room for thinking + final decision
+      maxTokens: 4096  // Use full available context for thorough deliberation
     });
 
-    console.log('Raw router response length:', result.content.length, 'characters');
-    console.log('Router response ends with:', result.content.slice(-150));
-    console.log('Full router response:', JSON.stringify(result.content));
-    
+    console.log('Raw router response:', JSON.stringify(result.content));
     return parseRouterResponse(result.content);
   } catch (error) {
     console.error('Router error:', error);
@@ -243,7 +229,7 @@ async function sendToSpecialist(category, message, history) {
     const preset = userSettings[presetKey];
 
     // Load specialist model
-    const loadResult = await loadModel(modelPath, preset);
+    const loadResult = await loadModel(modelPath, preset, false);
     if (!loadResult.success) {
       throw new Error(`Failed to load model for category ${category}: ${loadResult.error}`);
     }
@@ -275,10 +261,9 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    console.log(`\n=== NEW USER MESSAGE ===`);
     console.log(`User message: ${message}`);
 
-    // Route the message using limited context (don't add user message yet)
+    // Route the message using current clean history (don't add user message yet)
     const routerResult = await routeMessage(message, conversationHistory);
     console.log('Router result:', routerResult);
 
@@ -314,8 +299,6 @@ app.post('/api/chat', async (req, res) => {
       timestamp: Date.now(),
       source: responseSource 
     });
-
-    console.log(`Conversation history now has ${conversationHistory.length} messages`);
 
     res.json({
       message: response,

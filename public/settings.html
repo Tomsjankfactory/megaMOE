@@ -56,6 +56,19 @@
                     </div>
 
                     <div class="setting-group">
+                        <label for="keepRouterLoaded">
+                            <span class="setting-icon">🔒</span>
+                            <div class="setting-info">
+                                <strong>Keep Router Loaded</strong>
+                                <small>Don't unload router model when switching to specialists</small>
+                            </div>
+                        </label>
+                        <div class="toggle-config">
+                            <input type="checkbox" id="keepRouterLoaded" name="keepRouterLoaded">
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
                         <label for="creative">
                             <span class="setting-icon">🎨</span>
                             <div class="setting-info">
@@ -166,6 +179,7 @@
                         <ul>
                             <li><strong>Router Model:</strong> Use a fast, efficient model for routing decisions</li>
                             <li><strong>Router Preset:</strong> Create a preset in LM Studio with system prompt for routing format</li>
+                            <li><strong>Keep Router Loaded:</strong> Toggle to prevent unloading router when switching to specialists</li>
                             <li><strong>Presets:</strong> Optional - specify presets created in LM Studio for each model</li>
                             <li><strong>System Prompt:</strong> Configure your router model's system prompt in LM Studio to respond with exact formats like "MODEL: coding"</li>
                             <li><strong>Specialists:</strong> Use models optimized for specific tasks</li>

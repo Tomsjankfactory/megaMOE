@@ -653,6 +653,20 @@ header h1 {
     border-color: #ef4444;
 }
 
+.toggle-config {
+    min-width: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.toggle-config input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
 .form-actions {
     display: flex;
     gap: 15px;
@@ -790,6 +804,10 @@ header h1 {
     .setting-group select,
     .preset-input {
         width: 100%;
+    }
+    
+    .toggle-config {
+        min-width: 100%;
     }
     
     .help-content {
