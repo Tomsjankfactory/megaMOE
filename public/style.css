@@ -1397,3 +1397,95 @@ header h1 {
     pointer-events: none;
     z-index: 0;
 }
+/* Enhanced styling for KaTeX boxed expressions */
+.katex .fbox {
+    background: linear-gradient(145deg, #ff0040, #ff6400, #ffff00) !important;
+    color: #000000 !important;
+    font-weight: 900 !important;
+    padding: 12px 20px !important;
+    margin: 8px 4px !important;
+    border: 3px solid #00ffff !important;
+    box-shadow: 
+        0 0 25px rgba(255, 100, 0, 0.8),
+        0 0 50px rgba(255, 0, 64, 0.6),
+        inset 0 0 15px rgba(255, 255, 255, 0.3) !important;
+    animation: answerGlow 2s ease-in-out infinite alternate !important;
+    border-radius: 0 !important;
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.8) !important;
+    font-size: 1.2em !important;
+    display: inline-block !important;
+    transform: translateY(-2px) !important;
+}
+
+.katex .fbox:hover {
+    transform: translateY(-4px) scale(1.05) !important;
+    box-shadow: 
+        0 0 40px rgba(255, 100, 0, 1),
+        0 0 70px rgba(255, 0, 64, 0.8),
+        0 0 90px rgba(0, 255, 255, 0.6),
+        inset 0 0 25px rgba(255, 255, 255, 0.4) !important;
+}
+
+@keyframes answerGlow {
+    0% { 
+        box-shadow: 
+            0 0 25px rgba(255, 100, 0, 0.8),
+            0 0 50px rgba(255, 0, 64, 0.6),
+            inset 0 0 15px rgba(255, 255, 255, 0.3);
+    }
+    100% { 
+        box-shadow: 
+            0 0 35px rgba(255, 100, 0, 1),
+            0 0 60px rgba(255, 0, 64, 0.8),
+            0 0 80px rgba(128, 0, 255, 0.6),
+            inset 0 0 20px rgba(255, 255, 255, 0.4);
+    }
+}
+
+/* Special styling for math model answers */
+.message.source-math .katex .fbox {
+    background: linear-gradient(145deg, #ff0040, #8000ff, #ff6400) !important;
+    border-color: #ff00ff !important;
+}
+
+.custom-boxed-answer {
+    display: inline-block;
+    background: linear-gradient(145deg, #ff0040, #ff6400, #ffff00) !important;
+    color: #000000 !important;
+    font-weight: 900 !important;
+    font-size: 1.35em !important;
+    padding: 16px 28px !important;
+    margin: 12px 10px !important;
+    border: 3px solid #00ffff !important;
+    box-shadow: 
+        0 0 30px rgba(255, 100, 0, 0.8),
+        0 0 60px rgba(255, 0, 64, 0.6),
+        inset 0 0 20px rgba(255, 255, 255, 0.3) !important;
+    position: relative;
+    animation: answerAppear 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: center;
+    min-width: 80px;
+    vertical-align: middle;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+    border-radius: 0;
+}
+
+.custom-boxed-answer:hover {
+    transform: translateY(-5px) scale(1.05) rotateZ(1deg) !important;
+    box-shadow: 
+        0 0 50px rgba(255, 100, 0, 1),
+        0 0 80px rgba(255, 0, 64, 0.8),
+        0 0 100px rgba(0, 255, 255, 0.6),
+        inset 0 0 30px rgba(255, 255, 255, 0.4) !important;
+    border-color: #ff00ff !important;
+}
+
+/* Special styling for math model answers */
+.message.source-math .custom-boxed-answer {
+    background: linear-gradient(145deg, #ff0040, #8000ff, #ff6400) !important;
+    border-color: #ff00ff !important;
+}

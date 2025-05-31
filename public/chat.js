@@ -215,74 +215,73 @@ class MoEChat {
         }
     }
 
-    // COMPLETELY REWRITTEN: Much more aggressive LaTeX cleanup
+    // FIXED: Conservative LaTeX processing - preserve valid LaTeX for KaTeX rendering
     processMathExpressions(text) {
-        // Step 1: Handle \boxed{content} expressions - extract content and wrap in special span
-        text = text.replace(/\\boxed\s*\{\s*([^}]+)\s*\}/g, '<span class="boxed-answer">$1</span>');
+        // Step 1: Handle \boxed{content} expressions - extract content and clean it for display
+        text = text.replace(/\\boxed\s*\{\s*([^}]+)\s*\}/g, (match, content) => {
+            // Clean LaTeX delimiters from boxed content
+            let cleanContent = content
+                .replace(/\\\(/g, '')
+                .replace(/\\\)/g, '')
+                .replace(/\\\[/g, '')
+                .replace(/\\\]/g, '')
+                .replace(/\$+/g, '')
+                .trim();
+            return `<span class="boxed-answer">${cleanContent}</span>`;
+        });
         
         // Step 2: Handle malformed boxed expressions (missing closing brace)
-        text = text.replace(/\\boxed\s*\{([^}]*?)(?:\s*$)/g, '<span class="boxed-answer">$1</span>');
+        text = text.replace(/\\boxed\s*\{([^}]*?)(?:\s*$)/g, (match, content) => {
+            // Clean LaTeX delimiters from boxed content
+            let cleanContent = content
+                .replace(/\\\(/g, '')
+                .replace(/\\\)/g, '')
+                .replace(/\\\[/g, '')
+                .replace(/\\\]/g, '')
+                .replace(/\$+/g, '')
+                .trim();
+            return `<span class="boxed-answer">${cleanContent}</span>`;
+        });
+        // Step 2: Handle malformed boxed expressions (missing closing brace)
+        text = text.replace(/\\boxed\s*\{([^}]*?)(?:\s*$)/g, (match, content) => {
+            // Clean LaTeX delimiters from boxed content
+            let cleanContent = content
+                .replace(/\\\(/g, '')
+                .replace(/\\\)/g, '')
+                .replace(/\\\[/g, '')
+                .replace(/\\\]/g, '')
+                .replace(/\$+/g, '')
+                .replace(/\{/g, '')
+                .replace(/\}/g, '')
+                .trim();
+            return `<span class="boxed-answer">${cleanContent}</span>`;
+        });
         
-        // Step 3: Handle display math delimiters - wrap but don't process content yet
-        text = text.replace(/\\\[\s*(.*?)\s*\\\]/gs, '<div class="math-display">\\[$1\\]</div>');
-        text = text.replace(/\$\$\s*(.*?)\s*\$\$/gs, '<div class="math-display">$$1$</div>');
+        // Step 3: Handle display math delimiters - preserve LaTeX content for KaTeX
+        text = text.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (match, content) => {
+            return `<div class="math-display">\\[${content}\\]</div>`;
+        });
+        text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (match, content) => {
+            return `<div class="math-display">$$${content}$$</div>`;
+        });
         
-        // Step 4: Handle inline math delimiters - wrap but don't process content yet
-        text = text.replace(/\\\(\s*(.*?)\s*\\\)/gs, '<span class="math-inline">\\($1\\)</span>');
+        // Step 4: Handle inline math delimiters - preserve LaTeX content for KaTeX
+        text = text.replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (match, content) => {
+            return `<span class="math-inline">\\(${content}\\)</span>`;
+        });
         
-        // Step 5: More conservative $ ... $ matching for actual math expressions
-        text = text.replace(/\$([^$\n]*[a-zA-Z0-9+\-*/=^_{}\\×÷√∞π∑∫α-ωΑ-Ω]+[^$\n]*)\$/g, '<span class="math-inline">$1$</span>');
+        // Step 5: Handle single $ delimiters for inline math (be more careful)
+        text = text.replace(/\$([^$\n]*(?:\\[a-zA-Z]+|[a-zA-Z0-9+\-*/=^_{}\\×÷√∞π∑∫α-ωΑ-Ω])[^$\n]*)\$/g, (match, content) => {
+            return `<span class="math-inline">$${content}$</span>`;
+        });
         
-        // Step 6: AGGRESSIVE CLEANUP - Remove ALL remaining LaTeX artifacts
-        // Replace common math operators first
-        text = text.replace(/\\times/g, '×');
-        text = text.replace(/\\cdot/g, '·');
-        text = text.replace(/\\div/g, '÷');
-        text = text.replace(/\\pm/g, '±');
-        text = text.replace(/\\mp/g, '∓');
-        text = text.replace(/\\le/g, '≤');
-        text = text.replace(/\\ge/g, '≥');
-        text = text.replace(/\\ne/g, '≠');
-        text = text.replace(/\\approx/g, '≈');
-        text = text.replace(/\\infty/g, '∞');
-        text = text.replace(/\\pi/g, 'π');
-        text = text.replace(/\\alpha/g, 'α');
-        text = text.replace(/\\beta/g, 'β');
-        text = text.replace(/\\gamma/g, 'γ');
-        text = text.replace(/\\delta/g, 'δ');
-        text = text.replace(/\\theta/g, 'θ');
-        text = text.replace(/\\lambda/g, 'λ');
-        text = text.replace(/\\mu/g, 'μ');
-        text = text.replace(/\\sigma/g, 'σ');
-        text = text.replace(/\\phi/g, 'φ');
-        text = text.replace(/\\omega/g, 'ω');
+        // Step 6: CONSERVATIVE cleanup - only remove clearly problematic syntax
+        // Only clean up standalone delimiters that aren't wrapped in math elements
         
-        // Remove any standalone LaTeX delimiters that weren't wrapped
-        text = text.replace(/\\\(/g, '');
-        text = text.replace(/\\\)/g, '');
-        text = text.replace(/\\\[/g, '');
-        text = text.replace(/\\\]/g, '');
+        // Remove orphaned \boxed commands that weren't caught above
+        text = text.replace(/\\boxed(?![^<]*<\/)/g, '');
         
-        // Remove any remaining \boxed commands
-        text = text.replace(/\\boxed\s*\{/g, '');
-        text = text.replace(/\\boxed/g, '');
-        
-        // Clean up stray braces around answers
-        text = text.replace(/\{\s*(\d+(?:\.\d+)?)\s*\}/g, '$1');
-        text = text.replace(/\s*\}\s*/g, ' ');
-        text = text.replace(/\s*\{\s*/g, ' ');
-        
-        // Remove other common LaTeX commands
-        text = text.replace(/\\text\{([^}]+)\}/g, '$1');
-        text = text.replace(/\\mathrm\{([^}]+)\}/g, '$1');
-        text = text.replace(/\\mathbf\{([^}]+)\}/g, '$1');
-        text = text.replace(/\\[a-zA-Z]+\{([^}]*)\}/g, '$1'); // Generic LaTeX command cleanup
-        
-        // Clean up spacing around math elements
-        text = text.replace(/\s+(<[^>]*class="(?:boxed-answer|math-[^"]*)"[^>]*>)/g, ' $1');
-        text = text.replace(/(<\/(?:span|div)>)\s+/g, '$1 ');
-        
-        // Final cleanup of extra whitespace
+        // Clean up extra whitespace
         text = text.replace(/\s{2,}/g, ' ');
         text = text.trim();
         
@@ -393,38 +392,10 @@ class MoEChat {
                 });
             } catch (error) {
                 console.warn('KaTeX rendering error:', error);
-                // Fallback: ensure any remaining LaTeX syntax is cleaned up
-                const mathElements = messageDiv.querySelectorAll('.math-inline, .math-display');
-                mathElements.forEach(el => {
-                    if (el.textContent.includes('\\') || el.textContent.includes('{') || el.textContent.includes('}')) {
-                        // Clean up any LaTeX that KaTeX couldn't handle
-                        let cleanText = el.textContent
-                            .replace(/\\\(/g, '')
-                            .replace(/\\\)/g, '')
-                            .replace(/\\\[/g, '')
-                            .replace(/\\\]/g, '')
-                            .replace(/\$+/g, '')
-                            .replace(/\{|\}/g, '')
-                            .trim();
-                        el.textContent = cleanText;
-                    }
-                });
+                // Don't do any cleanup - let KaTeX handle what it can
             }
         } else {
-            // If KaTeX is not available, do additional cleanup
-            console.warn('KaTeX not available, doing manual cleanup');
-            const mathElements = messageDiv.querySelectorAll('.math-inline, .math-display, .boxed-answer');
-            mathElements.forEach(el => {
-                let cleanText = el.textContent
-                    .replace(/\\\(/g, '')
-                    .replace(/\\\)/g, '')
-                    .replace(/\\\[/g, '')
-                    .replace(/\\\]/g, '')
-                    .replace(/\$+/g, '')
-                    .replace(/\{|\}/g, '')
-                    .trim();
-                el.textContent = cleanText;
-            });
+            console.warn('KaTeX not available - LaTeX won\'t be rendered');
         }
         
         if (scroll) {
