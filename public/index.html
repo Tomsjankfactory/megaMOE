@@ -5,10 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MoE Router Chat</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Add KaTeX for math rendering -->
+    <!-- Enhanced KaTeX for beautiful math rendering -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    
+    <!-- KaTeX configuration for better rendering -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Configure KaTeX for optimal math rendering
+            window.katexConfig = {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "\\[", right: "\\]", display: true},
+                    {left: "$", right: "$", display: false},
+                    {left: "\\(", right: "\\)", display: false}
+                ],
+                throwOnError: false,
+                strict: false,
+                trust: true,
+                macros: {
+                    "\\times": "\\cdot",
+                    "\\boxed": "\\fbox"
+                },
+                // Enhanced error handling
+                errorCallback: function(msg, err) {
+                    console.warn('KaTeX rendering error:', msg, err);
+                    return msg;
+                }
+            };
+        });
+    </script>
 </head>
 <body>
     <div class="container">
@@ -27,8 +54,6 @@
             <div class="chat-messages" id="chatMessages">
                 <div class="welcome-message">
                     <h3>Welcome to MoE Router! 🚀</h3>
-                    <p>I'll automatically route your messages to the most appropriate specialist model based on your request.</p>
-                    <p>Math models will now render equations beautifully with <span class="math-inline">LaTeX</span> formatting!</p>
                     <p>Make sure to configure your models in <a href="settings.html">Settings</a> first.</p>
                 </div>
             </div>
@@ -37,7 +62,7 @@
                 <div class="input-wrapper">
                     <textarea 
                         id="messageInput" 
-                        placeholder="Type your message here... Try asking for math calculations!" 
+                        placeholder="Type your message here... Try asking for math calculations or coding help!" 
                         rows="1"
                         maxlength="4000"
                     ></textarea>

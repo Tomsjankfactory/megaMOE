@@ -215,70 +215,117 @@ class MoEChat {
         }
     }
 
-    // IMPROVED: Process math expressions for beautiful rendering
+    // COMPLETELY REWRITTEN: Much more aggressive LaTeX cleanup
     processMathExpressions(text) {
-        // Handle \boxed{content} MORE AGGRESSIVELY - remove all LaTeX artifacts
+        // Step 1: Handle \boxed{content} expressions - extract content and wrap in special span
         text = text.replace(/\\boxed\s*\{\s*([^}]+)\s*\}/g, '<span class="boxed-answer">$1</span>');
         
-        // Also catch malformed boxed expressions
-        text = text.replace(/\\boxed\s*\{([^}]*)/g, '<span class="boxed-answer">$1</span>');
-        text = text.replace(/\}\s*\)/g, '</span>');
+        // Step 2: Handle malformed boxed expressions (missing closing brace)
+        text = text.replace(/\\boxed\s*\{([^}]*?)(?:\s*$)/g, '<span class="boxed-answer">$1</span>');
         
-        // Clean up any remaining LaTeX artifacts around boxes
-        text = text.replace(/\\\(\s*<span class="boxed-answer">/g, '<span class="boxed-answer">');
-        text = text.replace(/<\/span>\s*\\\)/g, '</span>');
+        // Step 3: Handle display math delimiters - wrap but don't process content yet
+        text = text.replace(/\\\[\s*(.*?)\s*\\\]/gs, '<div class="math-display">\\[$1\\]</div>');
+        text = text.replace(/\$\$\s*(.*?)\s*\$\$/gs, '<div class="math-display">$$1$</div>');
         
-        // Handle display math \[ ... \] and $$ ... $$
-        text = text.replace(/\\\[\s*([^\]]*)\s*\\\]/g, '<div class="math-display">\\[$1\\]</div>');
-        text = text.replace(/\$\$\s*([^$]*)\s*\$\$/g, '<div class="math-display">$$$$1$$</div>');
+        // Step 4: Handle inline math delimiters - wrap but don't process content yet
+        text = text.replace(/\\\(\s*(.*?)\s*\\\)/gs, '<span class="math-inline">\\($1\\)</span>');
         
-        // Handle inline math \( ... \) and $ ... $ (but be careful not to break existing $ in text)
-        text = text.replace(/\\\(\s*([^)]*)\s*\\\)/g, '<span class="math-inline">\\($1\\)</span>');
+        // Step 5: More conservative $ ... $ matching for actual math expressions
+        text = text.replace(/\$([^$\n]*[a-zA-Z0-9+\-*/=^_{}\\×÷√∞π∑∫α-ωΑ-Ω]+[^$\n]*)\$/g, '<span class="math-inline">$1$</span>');
         
-        // More conservative $ ... $ matching - only if it really looks like math
-        text = text.replace(/\$([^$\n]*[a-zA-Z0-9+\-*/=^_{}\\×÷√∞]+[^$\n]*)\$/g, '<span class="math-inline">$$1$</span>');
+        // Step 6: AGGRESSIVE CLEANUP - Remove ALL remaining LaTeX artifacts
+        // Replace common math operators first
+        text = text.replace(/\\times/g, '×');
+        text = text.replace(/\\cdot/g, '·');
+        text = text.replace(/\\div/g, '÷');
+        text = text.replace(/\\pm/g, '±');
+        text = text.replace(/\\mp/g, '∓');
+        text = text.replace(/\\le/g, '≤');
+        text = text.replace(/\\ge/g, '≥');
+        text = text.replace(/\\ne/g, '≠');
+        text = text.replace(/\\approx/g, '≈');
+        text = text.replace(/\\infty/g, '∞');
+        text = text.replace(/\\pi/g, 'π');
+        text = text.replace(/\\alpha/g, 'α');
+        text = text.replace(/\\beta/g, 'β');
+        text = text.replace(/\\gamma/g, 'γ');
+        text = text.replace(/\\delta/g, 'δ');
+        text = text.replace(/\\theta/g, 'θ');
+        text = text.replace(/\\lambda/g, 'λ');
+        text = text.replace(/\\mu/g, 'μ');
+        text = text.replace(/\\sigma/g, 'σ');
+        text = text.replace(/\\phi/g, 'φ');
+        text = text.replace(/\\omega/g, 'ω');
+        
+        // Remove any standalone LaTeX delimiters that weren't wrapped
+        text = text.replace(/\\\(/g, '');
+        text = text.replace(/\\\)/g, '');
+        text = text.replace(/\\\[/g, '');
+        text = text.replace(/\\\]/g, '');
+        
+        // Remove any remaining \boxed commands
+        text = text.replace(/\\boxed\s*\{/g, '');
+        text = text.replace(/\\boxed/g, '');
+        
+        // Clean up stray braces around answers
+        text = text.replace(/\{\s*(\d+(?:\.\d+)?)\s*\}/g, '$1');
+        text = text.replace(/\s*\}\s*/g, ' ');
+        text = text.replace(/\s*\{\s*/g, ' ');
+        
+        // Remove other common LaTeX commands
+        text = text.replace(/\\text\{([^}]+)\}/g, '$1');
+        text = text.replace(/\\mathrm\{([^}]+)\}/g, '$1');
+        text = text.replace(/\\mathbf\{([^}]+)\}/g, '$1');
+        text = text.replace(/\\[a-zA-Z]+\{([^}]*)\}/g, '$1'); // Generic LaTeX command cleanup
+        
+        // Clean up spacing around math elements
+        text = text.replace(/\s+(<[^>]*class="(?:boxed-answer|math-[^"]*)"[^>]*>)/g, ' $1');
+        text = text.replace(/(<\/(?:span|div)>)\s+/g, '$1 ');
+        
+        // Final cleanup of extra whitespace
+        text = text.replace(/\s{2,}/g, ' ');
+        text = text.trim();
         
         return text;
     }
 
-    // IMPROVED: Enhanced formatMessage with better cleaning
+    // ENHANCED: Better formatMessage with improved code/math separation
     formatMessage(content) {
-        // First handle inline code (preserve it from math processing)
-        let formatted = content.replace(/`([^`]+)`/g, '<code class="preserve-from-math">$1</code>');
-
-        // Handle code blocks with toggle functionality (preserve them too)
+        // Step 1: Protect code blocks and inline code from math processing
+        let formatted = content;
+        const protectedBlocks = [];
+        let blockIndex = 0;
+        
+        // Protect code blocks first
         formatted = formatted.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, language, code) => {
+            const placeholder = `___PROTECTED_BLOCK_${blockIndex}___`;
             const lang = language.toLowerCase() || 'text';
             const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
             const cleanCode = code.trim();
             
-            return `<div class="code-block-container preserve-from-math"><div class="code-header"><span class="code-language">${lang.toUpperCase()}</span><div class="code-controls"><button class="code-toggle" onclick="toggleCodeView('${codeId}')"><span class="toggle-text">${lang === 'html' ? 'Show Code' : 'View Code'}</span></button><button class="code-copy" onclick="copyCode('${codeId}')">📋 Copy</button></div></div><div class="code-preview" id="preview-${codeId}">${lang === 'html' ? cleanCode : `<pre><code>${this.escapeHtml(cleanCode)}</code></pre>`}</div><div class="code-source" id="source-${codeId}" style="display: none;"><pre><code>${this.escapeHtml(cleanCode)}</code></pre></div></div>`;
+            protectedBlocks[blockIndex] = `<div class="code-block-container"><div class="code-header"><span class="code-language">${lang.toUpperCase()}</span><div class="code-controls"><button class="code-toggle" onclick="toggleCodeView('${codeId}')"><span class="toggle-text">${lang === 'html' ? 'Show Code' : 'View Code'}</span></button><button class="code-copy" onclick="copyCode('${codeId}')">📋 Copy</button></div></div><div class="code-preview" id="preview-${codeId}">${lang === 'html' ? cleanCode : `<pre><code>${this.escapeHtml(cleanCode)}</code></pre>`}</div><div class="code-source" id="source-${codeId}" style="display: none;"><pre><code>${this.escapeHtml(cleanCode)}</code></pre></div></div>`;
+            blockIndex++;
+            return placeholder;
+        });
+        
+        // Protect inline code
+        formatted = formatted.replace(/`([^`]+)`/g, (match, code) => {
+            const placeholder = `___PROTECTED_BLOCK_${blockIndex}___`;
+            protectedBlocks[blockIndex] = `<code>${this.escapeHtml(code)}</code>`;
+            blockIndex++;
+            return placeholder;
         });
 
-        // Process math expressions FIRST (but skip content marked as preserve-from-math)
-        const parts = formatted.split(/(<[^>]*class="[^"]*preserve-from-math[^"]*"[^>]*>.*?<\/[^>]*>)/);
-        formatted = parts.map((part, index) => {
-            // Only process math on parts that aren't code blocks
-            if (index % 2 === 0) {
-                return this.processMathExpressions(part);
-            }
-            return part;
-        }).join('');
+        // Step 2: Process math expressions on the text (avoiding protected blocks)
+        formatted = this.processMathExpressions(formatted);
 
-        // Clean up the preserve markers
-        formatted = formatted.replace(/class="[^"]*preserve-from-math[^"]*"/g, '');
-        
-        // ADDITIONAL CLEANUP: Remove any remaining LaTeX artifacts
-        formatted = formatted.replace(/\\boxed\s*\{/g, '');
-        formatted = formatted.replace(/\}\s*\./g, '.');
-        formatted = formatted.replace(/\\\(/g, '');
-        formatted = formatted.replace(/\\\)/g, '');
-        
-        // Clean up extra whitespace around math elements
-        formatted = formatted.replace(/\s+(<span class="boxed-answer">)/g, ' $1');
-        formatted = formatted.replace(/(<\/span>)\s+/g, '$1 ');
+        // Step 3: Restore protected blocks
+        for (let i = blockIndex - 1; i >= 0; i--) {
+            const placeholder = `___PROTECTED_BLOCK_${i}___`;
+            formatted = formatted.replace(placeholder, protectedBlocks[i]);
+        }
 
-        // Handle line breaks last
+        // Step 4: Handle line breaks last
         formatted = formatted.replace(/\n/g, '<br>');
 
         return formatted;
@@ -290,7 +337,7 @@ class MoEChat {
         return div.innerHTML;
     }
 
-    // UPDATED: Enhanced addMessageToChat with math rendering
+    // ENHANCED: Better math rendering support
     addMessageToChat(content, role, source = null, scroll = true) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
@@ -327,7 +374,7 @@ class MoEChat {
 
         this.chatMessages.appendChild(messageDiv);
         
-        // IMPROVED: Render math with KaTeX after adding the message
+        // IMPROVED: Enhanced KaTeX rendering with better error handling
         if (typeof renderMathInElement !== 'undefined') {
             try {
                 renderMathInElement(messageDiv, {
@@ -338,11 +385,46 @@ class MoEChat {
                         {left: "\\(", right: "\\)", display: false}
                     ],
                     throwOnError: false,
-                    strict: false
+                    strict: false,
+                    trust: true,
+                    macros: {
+                        "\\times": "\\cdot"
+                    }
                 });
             } catch (error) {
                 console.warn('KaTeX rendering error:', error);
+                // Fallback: ensure any remaining LaTeX syntax is cleaned up
+                const mathElements = messageDiv.querySelectorAll('.math-inline, .math-display');
+                mathElements.forEach(el => {
+                    if (el.textContent.includes('\\') || el.textContent.includes('{') || el.textContent.includes('}')) {
+                        // Clean up any LaTeX that KaTeX couldn't handle
+                        let cleanText = el.textContent
+                            .replace(/\\\(/g, '')
+                            .replace(/\\\)/g, '')
+                            .replace(/\\\[/g, '')
+                            .replace(/\\\]/g, '')
+                            .replace(/\$+/g, '')
+                            .replace(/\{|\}/g, '')
+                            .trim();
+                        el.textContent = cleanText;
+                    }
+                });
             }
+        } else {
+            // If KaTeX is not available, do additional cleanup
+            console.warn('KaTeX not available, doing manual cleanup');
+            const mathElements = messageDiv.querySelectorAll('.math-inline, .math-display, .boxed-answer');
+            mathElements.forEach(el => {
+                let cleanText = el.textContent
+                    .replace(/\\\(/g, '')
+                    .replace(/\\\)/g, '')
+                    .replace(/\\\[/g, '')
+                    .replace(/\\\]/g, '')
+                    .replace(/\$+/g, '')
+                    .replace(/\{|\}/g, '')
+                    .trim();
+                el.textContent = cleanText;
+            });
         }
         
         if (scroll) {
