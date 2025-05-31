@@ -1,7 +1,7 @@
 {
   "router": "unsloth/Qwen3-1.7B-GGUF/Qwen3-1.7B-Q8_0.gguf",
   "routerPreset": null,
-  "creative": "DavidAU/TieFighter-Holodeck-Holomax-Mythomax-F1-V1-COMPOS-20B-gguf/TieFighter-Holodeck-Holomax-Mythomax-F1-V1-COMPOS-20B-Q4_K_S.gguf",
+  "creative": "DevQuasar/julien-c.Mistral-7B-Neural-Story-mix-GGUF/julien-c.Mistral-7B-Neural-Story-mix.Q4_K_S.gguf",
   "creativePreset": null,
   "coding": "C10X/Qwen3-8B-Code-Interpreter-Q4_K_M-GGUF/qwen3-8b-code-interpreter-q4_k_m.gguf",
   "codingPreset": null,

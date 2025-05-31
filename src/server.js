@@ -17,11 +17,24 @@ const client = new LMStudioClient({
   baseUrl: 'ws://192.168.1.2:1234'
 });
 
-// Store conversation history and current loaded model info
+// Store conversation history
 let conversationHistory = []; // Clean history for specialists (user + specialist responses only)
-let currentLoadedModel = null; // Track currently loaded model handle
-let currentModelId = null; // Track which model is currently loaded
-let currentModelIsRouter = false; // Track if currently loaded model is the router
+
+// Track loaded models separately
+let routerModel = {
+  handle: null,
+  path: null,
+  preset: null,
+  isLoaded: false
+};
+
+let specialistModel = {
+  handle: null,
+  path: null,
+  preset: null,
+  category: null,
+  isLoaded: false
+};
 
 let userSettings = {
   router: null,
@@ -88,6 +101,15 @@ app.post('/api/settings', async (req, res) => {
   try {
     userSettings = { ...userSettings, ...req.body };
     await saveSettings();
+    
+    // If router config changed, mark as needing reload
+    if (req.body.router !== undefined || req.body.routerPreset !== undefined) {
+      if (routerModel.path !== userSettings.router || routerModel.preset !== userSettings.routerPreset) {
+        console.log('Router configuration changed, will reload on next use');
+        routerModel.isLoaded = false; // Mark for reload
+      }
+    }
+    
     res.json({ success: true, settings: userSettings });
   } catch (error) {
     console.error('Error updating settings:', error);
@@ -95,59 +117,115 @@ app.post('/api/settings', async (req, res) => {
   }
 });
 
-// Load a specific model (unload current if different)
-async function loadModel(modelPath, preset = null, isRouter = false) {
+// Load router model if needed
+async function ensureRouterLoaded() {
+  if (!userSettings.router) {
+    throw new Error('No router model configured');
+  }
+
+  // Check if current router is what we need
+  if (routerModel.isLoaded && 
+      routerModel.path === userSettings.router && 
+      routerModel.preset === userSettings.routerPreset &&
+      routerModel.handle) {
+    console.log('Router already loaded and current');
+    return routerModel.handle;
+  }
+
+  // Unload old router if different
+  if (routerModel.handle && routerModel.isLoaded) {
+    console.log(`Unloading old router: ${routerModel.path}`);
+    try {
+      await routerModel.handle.unload();
+    } catch (error) {
+      console.warn('Error unloading old router:', error);
+    }
+  }
+
+  // Load new router
+  console.log(`Loading router: ${userSettings.router}${userSettings.routerPreset ? ` with preset "${userSettings.routerPreset}"` : ''}`);
+  
+  const loadOptions = {
+    verbose: false,
+    noHup: false
+  };
+  
+  if (userSettings.routerPreset) {
+    loadOptions.preset = userSettings.routerPreset;
+  }
+  
   try {
-    // If this model is already loaded, return success
-    if (currentModelId === modelPath && currentLoadedModel) {
-      console.log(`Model ${modelPath} already loaded`);
-      return { success: true, model: currentLoadedModel };
-    }
-
-    // Unload current model if different
-    if (currentLoadedModel && currentModelId !== modelPath) {
-      // Check if we should keep router loaded
-      const shouldKeepRouter = userSettings.keepRouterLoaded && currentModelIsRouter;
-      
-      if (shouldKeepRouter) {
-        console.log(`Keeping router model ${currentModelId} loaded due to toggle setting`);
-      } else {
-        console.log(`Unloading current model ${currentModelId}`);
-        try {
-          await currentLoadedModel.unload();
-        } catch (unloadError) {
-          console.warn('Error unloading model:', unloadError);
-          // Continue anyway - try to load new model
-        }
-        currentLoadedModel = null;
-        currentModelId = null;
-        currentModelIsRouter = false;
-      }
-    }
-
-    // Load new model with optional preset
-    console.log(`Loading model ${modelPath}${preset ? ` with preset "${preset}"` : ''}`);
+    const handle = await client.llm.load(userSettings.router, loadOptions);
     
-    const loadOptions = {
-      verbose: false,
-      noHup: false // Unload when client disconnects
-    };
+    routerModel.handle = handle;
+    routerModel.path = userSettings.router;
+    routerModel.preset = userSettings.routerPreset;
+    routerModel.isLoaded = true;
     
-    if (preset) {
-      loadOptions.preset = preset;
-    }
-    
-    const model = await client.llm.load(modelPath, loadOptions);
-    
-    currentLoadedModel = model;
-    currentModelId = modelPath;
-    currentModelIsRouter = isRouter;
-    console.log(`Successfully loaded model ${modelPath}${preset ? ` with preset "${preset}"` : ''}`);
-    
-    return { success: true, model: model };
+    console.log(`Router loaded successfully: ${userSettings.router}`);
+    return handle;
   } catch (error) {
-    console.error(`Error loading model ${modelPath}:`, error);
-    return { success: false, error: error.message };
+    routerModel.isLoaded = false;
+    throw new Error(`Failed to load router: ${error.message}`);
+  }
+}
+
+// Load specialist model for given category
+async function ensureSpecialistLoaded(category) {
+  const modelPath = userSettings[category];
+  if (!modelPath) {
+    throw new Error(`No model configured for category: ${category}`);
+  }
+
+  const presetKey = `${category}Preset`;
+  const preset = userSettings[presetKey];
+
+  // Check if current specialist is what we need
+  if (specialistModel.isLoaded &&
+      specialistModel.path === modelPath &&
+      specialistModel.preset === preset &&
+      specialistModel.category === category &&
+      specialistModel.handle) {
+    console.log(`Specialist ${category} already loaded and current`);
+    return specialistModel.handle;
+  }
+
+  // Unload old specialist if different
+  if (specialistModel.handle && specialistModel.isLoaded) {
+    console.log(`Unloading old specialist: ${specialistModel.category} (${specialistModel.path})`);
+    try {
+      await specialistModel.handle.unload();
+    } catch (error) {
+      console.warn('Error unloading old specialist:', error);
+    }
+  }
+
+  // Load new specialist
+  console.log(`Loading specialist ${category}: ${modelPath}${preset ? ` with preset "${preset}"` : ''}`);
+  
+  const loadOptions = {
+    verbose: false,
+    noHup: false
+  };
+  
+  if (preset) {
+    loadOptions.preset = preset;
+  }
+  
+  try {
+    const handle = await client.llm.load(modelPath, loadOptions);
+    
+    specialistModel.handle = handle;
+    specialistModel.path = modelPath;
+    specialistModel.preset = preset;
+    specialistModel.category = category;
+    specialistModel.isLoaded = true;
+    
+    console.log(`Specialist ${category} loaded successfully: ${modelPath}`);
+    return handle;
+  } catch (error) {
+    specialistModel.isLoaded = false;
+    throw new Error(`Failed to load specialist ${category}: ${error.message}`);
   }
 }
 
@@ -186,15 +264,7 @@ function parseRouterResponse(response) {
 // Send message to router model
 async function routeMessage(message, cleanHistory) {
   try {
-    if (!userSettings.router) {
-      throw new Error('No router model configured');
-    }
-
-    // Load router model
-    const loadResult = await loadModel(userSettings.router, userSettings.routerPreset, true);
-    if (!loadResult.success) {
-      throw new Error(`Failed to load router model: ${loadResult.error}`);
-    }
+    const routerHandle = await ensureRouterLoaded();
 
     // Prepare messages for router (clean conversation history + current message)
     const messages = [
@@ -202,10 +272,10 @@ async function routeMessage(message, cleanHistory) {
       { role: 'user', content: message }
     ];
 
-    // Get router response (await full result) - use full context window for thinking models
-    const result = await loadResult.model.respond(messages, {
+    // Get router response
+    const result = await routerHandle.respond(messages, {
       temperature: 0.1,
-      maxTokens: 4096  // Use full available context for thorough deliberation
+      maxTokens: 4096
     });
 
     console.log('Raw router response:', JSON.stringify(result.content));
@@ -219,20 +289,7 @@ async function routeMessage(message, cleanHistory) {
 // Send message to specialist model
 async function sendToSpecialist(category, message, history) {
   try {
-    const modelPath = userSettings[category];
-    if (!modelPath) {
-      throw new Error(`No model configured for category: ${category}`);
-    }
-
-    // Get preset for this category
-    const presetKey = `${category}Preset`;
-    const preset = userSettings[presetKey];
-
-    // Load specialist model
-    const loadResult = await loadModel(modelPath, preset, false);
-    if (!loadResult.success) {
-      throw new Error(`Failed to load model for category ${category}: ${loadResult.error}`);
-    }
+    const specialistHandle = await ensureSpecialistLoaded(category);
 
     // Send full conversation history + current message to specialist
     const messages = [
@@ -240,7 +297,7 @@ async function sendToSpecialist(category, message, history) {
       { role: 'user', content: message }
     ];
 
-    const result = await loadResult.model.respond(messages, {
+    const result = await specialistHandle.respond(messages, {
       temperature: 0.7,
       maxTokens: 2000
     });
@@ -249,6 +306,22 @@ async function sendToSpecialist(category, message, history) {
   } catch (error) {
     console.error(`Specialist error for ${category}:`, error);
     throw error;
+  }
+}
+
+// Cleanup models when not keeping router loaded
+async function cleanupModelsIfNeeded() {
+  if (!userSettings.keepRouterLoaded) {
+    // Unload router to save memory
+    if (routerModel.handle && routerModel.isLoaded) {
+      console.log('Unloading router (keepRouterLoaded is false)');
+      try {
+        await routerModel.handle.unload();
+        routerModel.isLoaded = false;
+      } catch (error) {
+        console.warn('Error unloading router:', error);
+      }
+    }
   }
 }
 
@@ -262,6 +335,7 @@ app.post('/api/chat', async (req, res) => {
     }
 
     console.log(`User message: ${message}`);
+    console.log(`Current specialist: ${specialistModel.isLoaded ? specialistModel.category : 'None'}`);
 
     // Route the message using current clean history (don't add user message yet)
     const routerResult = await routeMessage(message, conversationHistory);
@@ -276,6 +350,10 @@ app.post('/api/chat', async (req, res) => {
         response = await sendToSpecialist(routerResult.category, message, conversationHistory);
         responseSource = routerResult.category;
         console.log(`Response from ${routerResult.category} model`);
+        
+        // Clean up router if not keeping it loaded
+        await cleanupModelsIfNeeded();
+        
       } catch (error) {
         response = `Error with ${routerResult.category} model: ${error.message}`;
         responseSource = 'error';
@@ -332,7 +410,10 @@ app.get('/api/health', async (req, res) => {
     res.json({ 
       status: 'ok', 
       lmStudioConnected: true,
-      currentModel: currentModelId || 'None loaded'
+      currentModels: {
+        router: routerModel.isLoaded ? `${routerModel.path}` : 'None',
+        specialist: specialistModel.isLoaded ? `${specialistModel.category} (${specialistModel.path})` : 'None'
+      }
     });
   } catch (error) {
     res.status(500).json({ 
