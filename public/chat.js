@@ -215,73 +215,32 @@ class MoEChat {
         }
     }
 
-    // FIXED: Conservative LaTeX processing - preserve valid LaTeX for KaTeX rendering
+    
+    // FIXED: Simplified math processing that works with KaTeX
     processMathExpressions(text) {
-        // Step 1: Handle \boxed{content} expressions - extract content and clean it for display
-        text = text.replace(/\\boxed\s*\{\s*([^}]+)\s*\}/g, (match, content) => {
-            // Clean LaTeX delimiters from boxed content
-            let cleanContent = content
-                .replace(/\\\(/g, '')
-                .replace(/\\\)/g, '')
-                .replace(/\\\[/g, '')
-                .replace(/\\\]/g, '')
-                .replace(/\$+/g, '')
-                .trim();
+        // Step 1: Handle \boxed{content} expressions - extract content and wrap in special span
+        text = text.replace(/\\boxed\s*\{([^}]+)\}/g, (match, content) => {
+            // Clean the content of any extra braces
+            const cleanContent = content.trim().replace(/^\{|\}$/g, '');
             return `<span class="boxed-answer">${cleanContent}</span>`;
         });
         
         // Step 2: Handle malformed boxed expressions (missing closing brace)
         text = text.replace(/\\boxed\s*\{([^}]*?)(?:\s*$)/g, (match, content) => {
-            // Clean LaTeX delimiters from boxed content
-            let cleanContent = content
-                .replace(/\\\(/g, '')
-                .replace(/\\\)/g, '')
-                .replace(/\\\[/g, '')
-                .replace(/\\\]/g, '')
-                .replace(/\$+/g, '')
-                .trim();
-            return `<span class="boxed-answer">${cleanContent}</span>`;
-        });
-        // Step 2: Handle malformed boxed expressions (missing closing brace)
-        text = text.replace(/\\boxed\s*\{([^}]*?)(?:\s*$)/g, (match, content) => {
-            // Clean LaTeX delimiters from boxed content
-            let cleanContent = content
-                .replace(/\\\(/g, '')
-                .replace(/\\\)/g, '')
-                .replace(/\\\[/g, '')
-                .replace(/\\\]/g, '')
-                .replace(/\$+/g, '')
-                .replace(/\{/g, '')
-                .replace(/\}/g, '')
-                .trim();
+            const cleanContent = content.trim().replace(/^\{|\}$/g, '');
             return `<span class="boxed-answer">${cleanContent}</span>`;
         });
         
-        // Step 3: Handle display math delimiters - preserve LaTeX content for KaTeX
-        text = text.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (match, content) => {
-            return `<div class="math-display">\\[${content}\\]</div>`;
-        });
-        text = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (match, content) => {
-            return `<div class="math-display">$$${content}$$</div>`;
-        });
+        // Step 3: DON'T wrap math expressions - let KaTeX handle them directly
+        // Just clean up any stray braces that aren't part of LaTeX commands
+        text = text.replace(/(?<!\\)\{(\d+(?:\.\d+)?)\}/g, '$1');
         
-        // Step 4: Handle inline math delimiters - preserve LaTeX content for KaTeX
-        text = text.replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (match, content) => {
-            return `<span class="math-inline">\\(${content}\\)</span>`;
-        });
+        // Step 4: Remove LaTeX commands that KaTeX won't handle
+        text = text.replace(/\\text\{([^}]+)\}/g, '$1');
+        text = text.replace(/\\mathrm\{([^}]+)\}/g, '$1');
+        text = text.replace(/\\mathbf\{([^}]+)\}/g, '$1');
         
-        // Step 5: Handle single $ delimiters for inline math (be more careful)
-        text = text.replace(/\$([^$\n]*(?:\\[a-zA-Z]+|[a-zA-Z0-9+\-*/=^_{}\\×÷√∞π∑∫α-ωΑ-Ω])[^$\n]*)\$/g, (match, content) => {
-            return `<span class="math-inline">$${content}$</span>`;
-        });
-        
-        // Step 6: CONSERVATIVE cleanup - only remove clearly problematic syntax
-        // Only clean up standalone delimiters that aren't wrapped in math elements
-        
-        // Remove orphaned \boxed commands that weren't caught above
-        text = text.replace(/\\boxed(?![^<]*<\/)/g, '');
-        
-        // Clean up extra whitespace
+        // Step 5: Clean up spacing
         text = text.replace(/\s{2,}/g, ' ');
         text = text.trim();
         
@@ -330,13 +289,7 @@ class MoEChat {
         return formatted;
     }
 
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // ENHANCED: Better math rendering support
+    // FIXED: Updated addMessageToChat with better KaTeX rendering
     addMessageToChat(content, role, source = null, scroll = true) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
@@ -373,10 +326,12 @@ class MoEChat {
 
         this.chatMessages.appendChild(messageDiv);
         
-        // IMPROVED: Enhanced KaTeX rendering with better error handling
+        // FIXED: Enhanced KaTeX rendering with proper element selection
         if (typeof renderMathInElement !== 'undefined') {
             try {
-                renderMathInElement(messageDiv, {
+                // Render math in the message content div specifically
+                const contentDiv = messageDiv.querySelector('.message-content');
+                renderMathInElement(contentDiv, {
                     delimiters: [
                         {left: "$$", right: "$$", display: true},
                         {left: "\\[", right: "\\]", display: true},
@@ -386,16 +341,26 @@ class MoEChat {
                     throwOnError: false,
                     strict: false,
                     trust: true,
-                    macros: {
-                        "\\times": "\\cdot"
+                    fleqn: false,
+                    // Add preprocessing to handle the already-extracted boxed content
+                    preProcess: (math) => {
+                        // Don't process content inside boxed-answer spans
+                        if (math.includes('boxed-answer')) {
+                            return math;
+                        }
+                        return math;
                     }
                 });
+                
+                // Apply any additional styling to rendered math
+                const mathElements = contentDiv.querySelectorAll('.katex');
+                mathElements.forEach(el => {
+                    el.classList.add('math-rendered');
+                });
+                
             } catch (error) {
                 console.warn('KaTeX rendering error:', error);
-                // Don't do any cleanup - let KaTeX handle what it can
             }
-        } else {
-            console.warn('KaTeX not available - LaTeX won\'t be rendered');
         }
         
         if (scroll) {
