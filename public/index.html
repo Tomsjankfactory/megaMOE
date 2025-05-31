@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MoE Router Chat</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Add KaTeX for math rendering -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -24,6 +28,7 @@
                 <div class="welcome-message">
                     <h3>Welcome to MoE Router! 🚀</h3>
                     <p>I'll automatically route your messages to the most appropriate specialist model based on your request.</p>
+                    <p>Math models will now render equations beautifully with <span class="math-inline">LaTeX</span> formatting!</p>
                     <p>Make sure to configure your models in <a href="settings.html">Settings</a> first.</p>
                 </div>
             </div>
@@ -32,7 +37,7 @@
                 <div class="input-wrapper">
                     <textarea 
                         id="messageInput" 
-                        placeholder="Type your message here..." 
+                        placeholder="Type your message here... Try asking for math calculations!" 
                         rows="1"
                         maxlength="4000"
                     ></textarea>

@@ -756,6 +756,182 @@ header h1 {
     font-size: 0.875rem;
 }
 
+/* ======================================= */
+/* BEAUTIFUL MATH RENDERING STYLES - NEW! */
+/* ======================================= */
+
+/* Enhanced math expression styling */
+.math-expression {
+    margin: 10px 0;
+    text-align: center;
+}
+
+.math-display {
+    display: block;
+    margin: 20px 0;
+    text-align: center;
+    overflow-x: auto;
+    padding: 10px;
+    background: rgba(248, 250, 252, 0.8);
+    border-radius: 8px;
+    border-left: 4px solid #6366f1;
+}
+
+.math-inline {
+    display: inline;
+    background: rgba(99, 102, 241, 0.1);
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+/* GORGEOUS BOXED ANSWERS */
+.boxed-answer {
+    display: inline-block;
+    background: linear-gradient(145deg, #6366f1, #8b5cf6);
+    color: white;
+    font-weight: 700;
+    font-size: 1.2em;
+    padding: 12px 20px;
+    margin: 8px 6px;
+    border-radius: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 
+        0 8px 25px rgba(99, 102, 241, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    position: relative;
+    animation: answerAppear 0.8s ease-out;
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.boxed-answer:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 
+        0 12px 35px rgba(99, 102, 241, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.boxed-answer::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(145deg, #8b5cf6, #6366f1, #ec4899);
+    border-radius: 14px;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.boxed-answer:hover::before {
+    opacity: 1;
+}
+
+@keyframes answerAppear {
+    0% {
+        opacity: 0;
+        transform: scale(0.8) translateY(20px);
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+    }
+    50% {
+        transform: scale(1.05) translateY(-5px);
+        box-shadow: 0 15px 40px rgba(99, 102, 241, 0.6);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+    }
+}
+
+/* Special styling for math model answers */
+.message.source-math .boxed-answer {
+    background: linear-gradient(145deg, #ec4899, #be185d);
+    box-shadow: 
+        0 8px 25px rgba(236, 72, 153, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.message.source-math .boxed-answer:hover {
+    box-shadow: 
+        0 12px 35px rgba(236, 72, 153, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.message.source-math .boxed-answer::before {
+    background: linear-gradient(145deg, #be185d, #ec4899, #f97316);
+}
+
+/* Step-by-step math styling */
+.math-steps {
+    background: #f8fafc;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 0 8px 8px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.math-step {
+    margin: 8px 0;
+    padding: 5px 0;
+}
+
+.step-number {
+    color: #667eea;
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+/* KaTeX styling overrides */
+.katex-display {
+    margin: 1em 0;
+    text-align: center;
+}
+
+.katex {
+    font-size: 1.1em;
+}
+
+/* For math in different message types */
+.message.source-math .katex {
+    color: #333;
+}
+
+/* Fix any alignment issues */
+.message-content .boxed-answer {
+    vertical-align: baseline;
+    line-height: 1.2;
+}
+
+/* Math in code blocks (prevent double processing) */
+.code-block-container .katex,
+.code-block-container .boxed-answer {
+    all: revert;
+}
+
+/* Better math error handling */
+.katex-error {
+    color: #dc2626 !important;
+    background: #fee2e2;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+/* Dark mode friendly */
+@media (prefers-color-scheme: dark) {
+    .boxed-answer {
+        border-color: rgba(255, 255, 255, 0.4);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    }
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .container {
@@ -836,6 +1012,22 @@ header h1 {
     }
     
     .code-block-container {
+        margin: 10px 0;
+    }
+    
+    /* Mobile responsive math */
+    .boxed-answer {
+        font-size: 1.1em;
+        padding: 10px 16px;
+        margin: 6px 4px;
+    }
+    
+    .katex {
+        font-size: 1em;
+    }
+    
+    .math-display {
+        overflow-x: auto;
         margin: 10px 0;
     }
 }

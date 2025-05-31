@@ -215,6 +215,82 @@ class MoEChat {
         }
     }
 
+    // IMPROVED: Process math expressions for beautiful rendering
+    processMathExpressions(text) {
+        // Handle \boxed{content} MORE AGGRESSIVELY - remove all LaTeX artifacts
+        text = text.replace(/\\boxed\s*\{\s*([^}]+)\s*\}/g, '<span class="boxed-answer">$1</span>');
+        
+        // Also catch malformed boxed expressions
+        text = text.replace(/\\boxed\s*\{([^}]*)/g, '<span class="boxed-answer">$1</span>');
+        text = text.replace(/\}\s*\)/g, '</span>');
+        
+        // Clean up any remaining LaTeX artifacts around boxes
+        text = text.replace(/\\\(\s*<span class="boxed-answer">/g, '<span class="boxed-answer">');
+        text = text.replace(/<\/span>\s*\\\)/g, '</span>');
+        
+        // Handle display math \[ ... \] and $$ ... $$
+        text = text.replace(/\\\[\s*([^\]]*)\s*\\\]/g, '<div class="math-display">\\[$1\\]</div>');
+        text = text.replace(/\$\$\s*([^$]*)\s*\$\$/g, '<div class="math-display">$$$$1$$</div>');
+        
+        // Handle inline math \( ... \) and $ ... $ (but be careful not to break existing $ in text)
+        text = text.replace(/\\\(\s*([^)]*)\s*\\\)/g, '<span class="math-inline">\\($1\\)</span>');
+        
+        // More conservative $ ... $ matching - only if it really looks like math
+        text = text.replace(/\$([^$\n]*[a-zA-Z0-9+\-*/=^_{}\\×÷√∞]+[^$\n]*)\$/g, '<span class="math-inline">$$1$</span>');
+        
+        return text;
+    }
+
+    // IMPROVED: Enhanced formatMessage with better cleaning
+    formatMessage(content) {
+        // First handle inline code (preserve it from math processing)
+        let formatted = content.replace(/`([^`]+)`/g, '<code class="preserve-from-math">$1</code>');
+
+        // Handle code blocks with toggle functionality (preserve them too)
+        formatted = formatted.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, language, code) => {
+            const lang = language.toLowerCase() || 'text';
+            const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
+            const cleanCode = code.trim();
+            
+            return `<div class="code-block-container preserve-from-math"><div class="code-header"><span class="code-language">${lang.toUpperCase()}</span><div class="code-controls"><button class="code-toggle" onclick="toggleCodeView('${codeId}')"><span class="toggle-text">${lang === 'html' ? 'Show Code' : 'View Code'}</span></button><button class="code-copy" onclick="copyCode('${codeId}')">📋 Copy</button></div></div><div class="code-preview" id="preview-${codeId}">${lang === 'html' ? cleanCode : `<pre><code>${this.escapeHtml(cleanCode)}</code></pre>`}</div><div class="code-source" id="source-${codeId}" style="display: none;"><pre><code>${this.escapeHtml(cleanCode)}</code></pre></div></div>`;
+        });
+
+        // Process math expressions FIRST (but skip content marked as preserve-from-math)
+        const parts = formatted.split(/(<[^>]*class="[^"]*preserve-from-math[^"]*"[^>]*>.*?<\/[^>]*>)/);
+        formatted = parts.map((part, index) => {
+            // Only process math on parts that aren't code blocks
+            if (index % 2 === 0) {
+                return this.processMathExpressions(part);
+            }
+            return part;
+        }).join('');
+
+        // Clean up the preserve markers
+        formatted = formatted.replace(/class="[^"]*preserve-from-math[^"]*"/g, '');
+        
+        // ADDITIONAL CLEANUP: Remove any remaining LaTeX artifacts
+        formatted = formatted.replace(/\\boxed\s*\{/g, '');
+        formatted = formatted.replace(/\}\s*\./g, '.');
+        formatted = formatted.replace(/\\\(/g, '');
+        formatted = formatted.replace(/\\\)/g, '');
+        
+        // Clean up extra whitespace around math elements
+        formatted = formatted.replace(/\s+(<span class="boxed-answer">)/g, ' $1');
+        formatted = formatted.replace(/(<\/span>)\s+/g, '$1 ');
+
+        // Handle line breaks last
+        formatted = formatted.replace(/\n/g, '<br>');
+
+        return formatted;
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // UPDATED: Enhanced addMessageToChat with math rendering
     addMessageToChat(content, role, source = null, scroll = true) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
@@ -251,34 +327,27 @@ class MoEChat {
 
         this.chatMessages.appendChild(messageDiv);
         
+        // IMPROVED: Render math with KaTeX after adding the message
+        if (typeof renderMathInElement !== 'undefined') {
+            try {
+                renderMathInElement(messageDiv, {
+                    delimiters: [
+                        {left: "$$", right: "$$", display: true},
+                        {left: "\\[", right: "\\]", display: true},
+                        {left: "$", right: "$", display: false},
+                        {left: "\\(", right: "\\)", display: false}
+                    ],
+                    throwOnError: false,
+                    strict: false
+                });
+            } catch (error) {
+                console.warn('KaTeX rendering error:', error);
+            }
+        }
+        
         if (scroll) {
             this.scrollToBottom();
         }
-    }
-
-    formatMessage(content) {
-        // First handle inline code
-        let formatted = content.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-        // Handle code blocks with toggle functionality
-        formatted = formatted.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, language, code) => {
-            const lang = language.toLowerCase() || 'text';
-            const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
-            const cleanCode = code.trim();
-            
-            return `<div class="code-block-container"><div class="code-header"><span class="code-language">${lang.toUpperCase()}</span><div class="code-controls"><button class="code-toggle" onclick="toggleCodeView('${codeId}')"><span class="toggle-text">${lang === 'html' ? 'Show Code' : 'View Code'}</span></button><button class="code-copy" onclick="copyCode('${codeId}')">📋 Copy</button></div></div><div class="code-preview" id="preview-${codeId}">${lang === 'html' ? cleanCode : `<pre><code>${this.escapeHtml(cleanCode)}</code></pre>`}</div><div class="code-source" id="source-${codeId}" style="display: none;"><pre><code>${this.escapeHtml(cleanCode)}</code></pre></div></div>`;
-        });
-
-        // Handle line breaks last
-        formatted = formatted.replace(/\n/g, '<br>');
-
-        return formatted;
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
 
     setLoading(loading) {
@@ -311,6 +380,7 @@ class MoEChat {
                     <div class="welcome-message">
                         <h3>Chat cleared! 🧹</h3>
                         <p>Start a new conversation below.</p>
+                        <p>Math models will render equations beautifully with LaTeX formatting!</p>
                     </div>
                 `;
                 this.currentModelSpan.textContent = 'None';
