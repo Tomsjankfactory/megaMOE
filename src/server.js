@@ -37,6 +37,28 @@ let userSettings = {
   generalPreset: null
 };
 
+// Get recent conversation context for router (saves tokens for reasoning)
+function getRecentContextForRouter(cleanHistory, currentMessage) {
+  const messages = [];
+  
+  if (cleanHistory.length >= 2) {
+    // Get last user message and assistant response
+    const lastAssistantMsg = cleanHistory[cleanHistory.length - 1];
+    const lastUserMsg = cleanHistory[cleanHistory.length - 2];
+    
+    // Only include if they're actually user/assistant pair
+    if (lastUserMsg.role === 'user' && lastAssistantMsg.role === 'assistant') {
+      messages.push(lastUserMsg);
+      messages.push(lastAssistantMsg);
+    }
+  }
+  
+  // Add current user message
+  messages.push({ role: 'user', content: currentMessage });
+  
+  return messages;
+}
+
 // Load settings from file
 async function loadSettings() {
   try {
@@ -185,19 +207,22 @@ async function routeMessage(message, cleanHistory) {
       throw new Error(`Failed to load router model: ${loadResult.error}`);
     }
 
-    // Prepare messages for router (clean conversation history + current message)
-    const messages = [
-      ...cleanHistory,
-      { role: 'user', content: message }
-    ];
+    // Get only recent context for router (saves tokens for reasoning)
+    const messages = getRecentContextForRouter(cleanHistory, message);
+    
+    console.log(`Router context: ${messages.length} messages (vs full history: ${cleanHistory.length + 1})`);
+    console.log('Router messages:', messages.map(m => `${m.role}: ${m.content.substring(0, 100)}...`));
 
-    // Get router response (await full result) - use full context window for thinking models
+    // Now router has plenty of tokens for chain-of-thought reasoning
     const result = await loadResult.model.respond(messages, {
       temperature: 0.1,
-      maxTokens: 4096  // Use full available context for thorough deliberation
+      maxTokens: 3000  // Plenty of room for thinking + final decision
     });
 
-    console.log('Raw router response:', JSON.stringify(result.content));
+    console.log('Raw router response length:', result.content.length, 'characters');
+    console.log('Router response ends with:', result.content.slice(-150));
+    console.log('Full router response:', JSON.stringify(result.content));
+    
     return parseRouterResponse(result.content);
   } catch (error) {
     console.error('Router error:', error);
@@ -250,9 +275,10 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
+    console.log(`\n=== NEW USER MESSAGE ===`);
     console.log(`User message: ${message}`);
 
-    // Route the message using current clean history (don't add user message yet)
+    // Route the message using limited context (don't add user message yet)
     const routerResult = await routeMessage(message, conversationHistory);
     console.log('Router result:', routerResult);
 
@@ -288,6 +314,8 @@ app.post('/api/chat', async (req, res) => {
       timestamp: Date.now(),
       source: responseSource 
     });
+
+    console.log(`Conversation history now has ${conversationHistory.length} messages`);
 
     res.json({
       message: response,
